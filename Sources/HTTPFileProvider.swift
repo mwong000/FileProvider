@@ -349,6 +349,7 @@ open class HTTPFileProvider: NSObject, FileProviderBasicRemote, FileProviderOper
         }
         let data = data ?? Data()
         let request = self.request(for: operation, overwrite: overwrite, attributes: [.contentModificationDateKey: Date()])
+	// changed this to use a normal data upload task rather than a streamedRequest since the latter resulted in empty files when using webDAV on Nextcloud
         return upload(path, request: request, data: data, operation: operation, completionHandler: completionHandler)
     }
     
