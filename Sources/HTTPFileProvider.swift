@@ -349,8 +349,7 @@ open class HTTPFileProvider: NSObject, FileProviderBasicRemote, FileProviderOper
         }
         let data = data ?? Data()
         let request = self.request(for: operation, overwrite: overwrite, attributes: [.contentModificationDateKey: Date()])
-        let stream = InputStream(data: data)
-        return upload(path, request: request, stream: stream, size: Int64(data.count), operation: operation, completionHandler: completionHandler)
+        return upload(path, request: request, data: data, operation: operation, completionHandler: completionHandler)
     }
     
     internal func request(for operation: FileOperationType, overwrite: Bool = false, attributes: [URLResourceKey: Any] = [:]) -> URLRequest {
@@ -528,23 +527,21 @@ open class HTTPFileProvider: NSObject, FileProviderBasicRemote, FileProviderOper
         task.resume()
     }
     
-    func upload(_ targetPath: String, request: URLRequest, stream: InputStream, size: Int64, operation: FileOperationType,
+    func upload(_ targetPath: String, request: URLRequest, data: Data, operation: FileOperationType,
                      completionHandler: SimpleCompletionHandler) -> Progress? {
-        if size > maxUploadSimpleSupported {
+        if Int64(data.count) > maxUploadSimpleSupported {
             let error = self.serverError(with: .payloadTooLarge, path: targetPath, data: nil)
             completionHandler?(error)
             self.delegateNotify(operation, error: error)
             return nil
         }
         
-        let progress = Progress(totalUnitCount: size)
+        let progress = Progress(totalUnitCount: Int64(data.count))
         progress.setUserInfoObject(operation, forKey: .fileProvderOperationTypeKey)
         progress.kind = .file
         progress.setUserInfoObject(Progress.FileOperationKind.downloading, forKey: .fileOperationKindKey)
         
-        var request = request
-        request.httpBodyStream = stream
-        let task = session.uploadTask(withStreamedRequest: request)
+        let task = session.uploadTask(with: request, from: data)
         self.upload_task(targetPath, progress: progress, task: task, operation: operation, completionHandler: completionHandler)
         
         return progress
